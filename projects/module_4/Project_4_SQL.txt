@@ -233,3 +233,4 @@ from flight_income left join --подтягиваем все только left join т.к. нас интерес
         left join dst_project.airports ap on f.arrival_airport = ap.airport_code -- названия города прилета (вылет всегда Анапа)
         
 order by f.scheduled_departure
+
