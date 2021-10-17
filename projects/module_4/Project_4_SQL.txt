@@ -1,0 +1,235 @@
+Задание 4.1
+SELECT a.city,
+       count(airport_code)
+FROM dst_project.airports a
+GROUP BY a.city
+ORDER BY 2 DESC
+
+Задание 4.2.1
+Select count(distinct f.status)
+from dst_project.flights f
+
+Задание 4.2.2
+Select count(f.flight_id)
+from dst_project.flights f
+where f.status = 'Departed'
+
+Задание 4.2.3
+Select count(s.seat_no)
+from dst_project.seats s
+where s.aircraft_code = 773::text
+
+Задание 4.2.4
+SELECT count(f.flight_id)
+FROM dst_project.flights f
+WHERE f.actual_arrival BETWEEN '2017-04-01 00:00' AND '2017-09-01 23:59'
+  AND f.status = 'Arrived'
+  
+Задание 4.3.1
+Select count(f.flight_id)
+from dst_project.flights f
+where f.status = 'Cancelled' 
+
+Задание 4.3.2
+
+SELECT 
+    'Boeing' model_type,
+     count(ac.aircraft_code)
+FROM dst_project.aircrafts ac
+WHERE ac.model LIKE 'Boeing%'
+UNION ALL
+SELECT
+    'Airbus' model_type,
+     count(ac.aircraft_code)
+FROM dst_project.aircrafts ac
+WHERE ac.model LIKE 'Airbus%'
+UNION ALL
+SELECT 
+    'Sukhoi Superjet' model_type,
+     count(ac.aircraft_code)
+FROM dst_project.aircrafts ac
+WHERE ac.model LIKE 'Sukhoi Superjet%'
+
+Задание 4.3.3  
+SELECT 
+    'Europe' part_of_world,
+     count(ap.airport_code)
+FROM dst_project.airports ap
+WHERE ap.timezone LIKE 'Europe%'
+UNION ALL
+SELECT 
+    'Asia' part_of_world,
+     count(ap.airport_code)
+FROM dst_project.airports ap
+WHERE ap.timezone LIKE 'Asia%'
+UNION ALL
+SELECT 
+    'Australia' part_of_world,
+     count(ap.airport_code)
+FROM dst_project.airports ap
+WHERE ap.timezone LIKE 'Australia%'
+
+Задание 4.3.4
+SELECT f.flight_id,
+       f.actual_arrival - f.scheduled_arrival AS delay_period
+FROM dst_project.flights f
+WHERE f.actual_arrival IS NOT NULL
+ORDER BY delay_period DESC
+LIMIT 1
+
+Задание 4.4.1
+SELECT min(f.scheduled_departure)
+FROM dst_project.flights f
+
+Задание 4.4.2
+SELECT TRUNC(EXTRACT(EPOCH FROM max((f.scheduled_arrival - f.scheduled_departure)))/60)
+FROM dst_project.flights f
+
+Задание 4.4.3
+SELECT f.departure_airport,
+       f.arrival_airport,
+       max(f.scheduled_arrival - f.scheduled_departure)
+FROM dst_project.flights f
+GROUP BY f.departure_airport,
+         f.arrival_airport
+ORDER BY 3 DESC
+LIMIT 10
+
+Задание 4.4.4
+SELECT TRUNC(EXTRACT(EPOCH FROM avg(f.scheduled_arrival - f.scheduled_departure)::INTERVAL)/60)
+from dst_project.flights f
+
+Задание 4.5.1
+SELECT s.fare_conditions,
+       count(s.seat_no)
+FROM dst_project.seats s
+where aircraft_code = 'SU9'
+GROUP BY s.fare_conditions
+order by 2 desc
+limit 1
+
+Задание 4.5.1
+SELECT min(b.total_amount)
+FROM dst_project.bookings b
+
+Задание 4.5.2
+SELECT bp.seat_no
+FROM dst_project.boarding_passes bp
+WHERE bp.ticket_no in
+    (
+        SELECT t.ticket_no
+        FROM dst_project.tickets t
+        WHERE t.passenger_id = '4313 788533' 
+    )
+
+Задание 5.1.1
+SELECT count(f.flight_id)
+FROM dst_project.flights f
+WHERE f.arrival_airport in
+    (SELECT ap.airport_code
+     FROM dst_project.airports ap
+     WHERE ap.city = 'Anapa' )
+  AND f.actual_arrival BETWEEN '2017-01-01 00:00' AND '2017-12-31 23:59'
+  AND f.status = 'Arrived'
+
+Задание 5.1.2  
+SELECT count(f.flight_id)
+SELECT count(f.flight_id)
+FROM dst_project.flights f
+WHERE f.departure_airport in
+    (SELECT ap.airport_code
+     FROM dst_project.airports ap
+     WHERE ap.city = 'Anapa' )
+  AND f.actual_departure BETWEEN '2017-01-01 00:00' AND '2017-02-28 23:59'
+  
+Задание 5.1.3   
+SELECT count(f.flight_id)
+FROM dst_project.flights f
+WHERE f.departure_airport in
+    (SELECT ap.airport_code
+     FROM dst_project.airports ap
+     WHERE ap.city = 'Anapa' )
+  AND f.status = 'Cancelled'
+  
+Задание 5.1.4
+SELECT count(f.arrival_airport)
+FROM dst_project.flights f
+WHERE f.departure_airport in
+    (SELECT ap.airport_code
+     FROM dst_project.airports ap
+     WHERE ap.city = 'Anapa' )  --Рейсы из Анапы
+  AND f.arrival_airport not in
+      (SELECT ap.airport_code
+     FROM dst_project.airports ap
+     WHERE ap.city = 'Moscow')  -- и рейсы НЕ в Москву 
+     
+
+Задание 5.1.5
+SELECT 
+    ac.model,
+    count(s.seat_no)
+FROM dst_project.seats s
+    LEFT JOIN dst_project.aircrafts ac on ac.aircraft_code = s.aircraft_code 
+    --подтягиваем к таблице с местами таблицу с самолетами, чтобы иметь названия моделей
+WHERE ac.aircraft_code in
+    (SELECT distinct f.aircraft_code
+     FROM dst_project.flights f
+     WHERE f.departure_airport = 'AAQ') /*не стал упарываться с еще одним
+                                        подзапросом на случай если в анапе больше одного аэропорта*/
+GROUP BY ac.model
+
+
+Проектный датасет
+
+with flight_income as --собираем статистику по стоимости билетов, выручке на рейсе и количестве купленных билетов
+( 
+    select
+        ft.flight_id,
+        sum(ft.amount) income,
+        count(*) num_of_passengers,
+        avg(ft.amount) avg_ticket_price
+    from dst_project.ticket_flights ft
+    where ft.flight_id in
+        (select f.flight_id
+        from dst_project.flights f
+        where f.departure_airport in ('AAQ')
+            AND (date_trunc('month', scheduled_departure) in ('2016-01-01','2016-02-01', '2016-12-01',  --в базе есть данные и за зиму 2016 года, почему бы их не взять
+                                                              '2017-01-01','2017-02-01', '2017-12-01'))
+        )
+    group by ft.flight_id
+),
+
+ac_seats as --собираем информацию о количестве мест в самолете
+(
+SELECT 
+    s.aircraft_code,
+    count(s.seat_no) seats_number
+FROM dst_project.seats s
+
+WHERE s.aircraft_code in
+    (SELECT distinct f.aircraft_code
+     FROM dst_project.flights f
+     WHERE f.departure_airport = 'AAQ')
+GROUP BY s.aircraft_code
+)
+
+select --собираем итоговый датасет
+    flight_income.flight_id, --идентификатор рейса
+    f.departure_airport,
+    'Anapa' as departure_city,
+    f.arrival_airport,
+    ap.city as arrival_city,
+    f.scheduled_departure,
+    extract(isodow from f.scheduled_departure) day_of_week,
+    f.aircraft_code,
+    EXTRACT(EPOCH FROM (f.actual_arrival - f.actual_departure))/3600::float  flight_time_hours, --время полета в часах в виде десятичной дроби
+    flight_income.income,
+    flight_income.avg_ticket_price,
+    flight_income.num_of_passengers,
+    acs.seats_number
+from flight_income left join --подтягиваем все только left join т.к. нас интересуют только рейсы из таблицы flight_income
+        dst_project.flights f on flight_income.flight_id = f.flight_id --информация о рейсах
+        left join ac_seats acs on f.aircraft_code = acs.aircraft_code  --информация о местах в самолетах
+        left join dst_project.airports ap on f.arrival_airport = ap.airport_code -- названия города прилета (вылет всегда Анапа)
+        
+order by f.scheduled_departure
